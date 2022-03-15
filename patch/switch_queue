@@ -1,0 +1,122 @@
+#!/bin/sh
+
+
+check_other_vpn(){
+        wg_server=$(uci get wireguard_server.@servers[0].enable)
+        ov_server=$(uci get vpn_service.global.enable)
+        wg_client=$(uci get wireguard.@proxy[0].enable)
+		ov_client=$(uci get  glconfig.openvpn.enable)
+		tor=$(uci get tor.global.enable)
+
+        if [ "$1" = "ovpn" ];then
+			[ "$wg_server" = "1" -o "$wg_client" = "1" ] && {
+				e750-mcu "                Switch no effect     WG ON"
+				exit 0
+			}
+			[ "$tor" = "1" ] && {
+				e750-mcu "                Switch no effect     TOR ON"
+				exit 0
+			}
+        elif [ "$1" = "wg" ];then
+			[ "$ov_server" = "1" -o "$ov_client" = "1" ] && {
+				e750-mcu "                Switch no effect    OVPN ON"
+				exit 0
+			}
+			[ "$tor" = "1" ] && {
+				e750-mcu "                Switch no effect     TOR ON"
+				exit 0
+			}
+	else
+			[ "$wg_server" = "1" -o "$wg_client" = "1" ] && {
+				e750-mcu "                Switch no effect     WG ON"
+				exit 0
+			}
+			[ "$ov_server" = "1" -o "$ov_client" = "1" ] && {
+				e750-mcu "                Switch no effect    OVPN ON"
+				exit 0
+			}
+        fi
+
+        if [ -f "/etc/config/shadowsocks" ]; then
+                ss_client=$(uci get shadowsocks.@transparent_proxy[0].main_server)
+                [ "$ss_client" != "nil" ] && {
+			e750-mcu "                Switch no effect     SS ON"
+               		exit 0
+                }
+        fi
+
+        if [ -f "/etc/config/ss-service" ]; then
+                ss_server=$(uci get ss-service.host.enable)
+                [ "$ss_server" = "1" ] && {
+			e750-mcu "                Switch no effect     SS ON"
+                	exit 0
+                }
+        fi
+}
+
+mcu_send_message(){
+
+	switch_left=
+	switch_disabled="0"
+	#switch_enabled=$(uci get glconfig.switch_button.enable)
+	switch_enabled="1"
+	#switch_func=$(uci get glconfig.switch_button.function)
+	switch_func="modem"
+
+	switch_left=$(grep -o "right.*lo" /sys/kernel/debug/gpio)
+
+	if [ "$switch_disabled" = "1" ] || [ "$switch_enabled" != "1" ]; then
+		exit 0
+	fi
+
+	#if switch is on left
+	if [ -n "$switch_left" ]; then
+		case "$switch_func" in
+			"wg")
+				check_other_vpn wg
+				e750-mcu "                 Turning WG ON"
+			;;
+			"vpn")
+				check_other_vpn ovpn
+				e750-mcu "                Turning OVPN ON"
+			;;
+			"tor")
+				e750-mcu "                Turning TOR ON"
+			;;
+			"modem")
+				e750-mcu "                Turning LTE ON"
+			;;
+			"*")
+			;;
+		esac
+	else
+		case "$switch_func" in
+			"wg")
+				check_other_vpn wg
+				e750-mcu "                 Turning WG OFF"
+			;;
+			"vpn")
+				check_other_vpn ovpn
+				e750-mcu "                Turning OVPN OFF"
+			;;
+			"tor")
+				check_other_vpn tor
+				e750-mcu "                Turning TOR OFF"
+			;;
+			"modem")
+				e750-mcu "                Turning LTE OFF"
+			;;
+			"*")
+			;;
+		esac
+	fi
+
+}
+mcu_send_message
+LOCK=/var/lock/switch.lock
+
+while [ 1 ];do
+	[ -f "$LOCK" ] || break
+	usleep 500000
+done
+switchaction &

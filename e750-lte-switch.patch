@@ -1,0 +1,72 @@
+diff -ruN old/switch_queue new/switch_queue
+--- old/switch_queue	2022-03-15 16:21:30.000000000 -0400
++++ new/switch_queue	2022-03-15 16:23:38.000000000 -0400
+@@ -58,8 +58,10 @@
+ 
+ 	switch_left=
+ 	switch_disabled="0"
+-	switch_enabled=$(uci get glconfig.switch_button.enable)
+-	switch_func=$(uci get glconfig.switch_button.function)
++	#switch_enabled=$(uci get glconfig.switch_button.enable)
++	switch_enabled="1"
++	#switch_func=$(uci get glconfig.switch_button.function)
++	switch_func="modem"
+ 
+ 	switch_left=$(grep -o "right.*lo" /sys/kernel/debug/gpio)
+ 
+@@ -81,6 +83,9 @@
+ 			"tor")
+ 				e750-mcu "                Turning TOR ON"
+ 			;;
++			"modem")
++				e750-mcu "                Turning LTE ON"
++			;;
+ 			"*")
+ 			;;
+ 		esac
+@@ -98,6 +103,9 @@
+ 				check_other_vpn tor
+ 				e750-mcu "                Turning TOR OFF"
+ 			;;
++			"modem")
++				e750-mcu "                Turning LTE OFF"
++			;;
+ 			"*")
+ 			;;
+ 		esac
+diff -ruN old/switchaction new/switchaction
+--- old/switchaction	2022-03-15 16:21:06.000000000 -0400
++++ new/switchaction	2022-03-15 16:20:59.000000000 -0400
+@@ -62,8 +62,10 @@
+ 	model=$(get_model)
+ 	switch_left=
+ 	switch_disabled="0"
+-	switch_enabled=$(uci get glconfig.switch_button.enable)
+-	switch_func=$(uci get glconfig.switch_button.function)
++	#switch_enabled=$(uci get glconfig.switch_button.enable)
++	switch_enabled="1"
++	#switch_func=$(uci get glconfig.switch_button.function)
++	switch_func="modem"
+ 
+ 	case "$model" in
+ 		"ar150")
+@@ -136,6 +138,9 @@
+ 				check_other_vpn tor
+ 				toggle_tor ON
+ 			;;
++			"modem")
++				echo -e "AT+cfun=1\r\n" > /dev/ttyUSB2
++			;;
+ 			"*")
+ 			;;
+ 		esac
+@@ -157,6 +162,9 @@
+ 			"tor")
+ 				toggle_tor OFF
+ 			;;
++			"modem")
++				echo -e "AT+cfun=4\r\n" > /dev/ttyUSB2
++			;;
+ 			"*")
+ 			;;
+ 		esac
